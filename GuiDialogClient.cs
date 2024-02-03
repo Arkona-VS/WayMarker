@@ -27,6 +27,17 @@ namespace WayMarker
                     parsers.Word("color"),
                 })
                 .HandleWith(new OnCommandDelegate(savemarker));
+            var savewaymarkerPos = api.ChatCommands.Create("savewaymarkerposition").RequiresPlayer()
+                .WithDescription("[name] [color] [x] [y] [z] save position to ui marker")
+                .WithArgs(new ICommandArgumentParser[]
+                {
+                                parsers.Word("name"),
+                                parsers.Word("color"),
+                                parsers.Int("x"),
+                                parsers.Int("y"),
+                                parsers.Int("z")
+                })
+                .HandleWith(new OnCommandDelegate(savemarkerpos));
             var delwaymarker = api.ChatCommands.Create("delwaymarker").RequiresPlayer()
                 .WithDescription("[name] delete curret position from ui marker")
                 .WithArgs(new ICommandArgumentParser[]
@@ -54,6 +65,17 @@ namespace WayMarker
                 .WithDescription("list of all colors")
                 .HandleWith(new OnCommandDelegate(colorswaymarker));
             OverlayTaskLoad(); 
+        }
+
+        private TextCommandResult savemarkerpos(TextCommandCallingArgs args)
+        {
+            if (args.ArgCount != 5)
+                return TextCommandResult.Error("Error save location, use [name-marker] [color] [x] [y] [z] at pos");
+            var pos = new Vec3d((int)args[2], (int)args[3], (int)args[4]);
+            pos.X = this.capi.World.DefaultSpawnPosition.XYZInt.X + pos.X;
+            pos.Z = this.capi.World.DefaultSpawnPosition.XYZInt.Z + pos.Z;
+            overlayTask.AddMarker((args[0] as string), args[1] as string, pos);
+            return TextCommandResult.Success("Succses save location.");
         }
 
         private TextCommandResult colorswaymarker(TextCommandCallingArgs args)
@@ -92,7 +114,7 @@ namespace WayMarker
         private TextCommandResult savemarker(TextCommandCallingArgs args)
         {
             if (args.ArgCount != 2)
-                return TextCommandResult.Error("Error save location, use [name-marker] at pos");
+                return TextCommandResult.Error("Error save location, use [name-marker] [color] at pos");
             overlayTask.AddMarker((args[0] as string),args[1] as string, capi.World.Player.Entity.Pos.XYZ);
             return TextCommandResult.Success("Succses save location.");
         }
