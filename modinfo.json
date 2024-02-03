@@ -1,10 +1,10 @@
 {
   "type": "code",
-  "modid": "WayMarker",
-  "name": "WayMarker",
+  "modid": "waymarker",
+  "name": "SimpleWayMarker",
   "author": "artEA",
   "description": "Simple way marker(point) in screen ui!",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "dependency": {
     "game": ""
   }

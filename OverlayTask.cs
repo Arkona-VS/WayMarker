@@ -8,18 +8,14 @@ using System.Threading.Tasks;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
-using static System.Net.Mime.MediaTypeNames;
 
-namespace HudClient
+namespace WayMarker
 {
     public class OverlayTask : HudElement
     {
         private GuiElementCustomDraw marker;
         private IRenderAPI _rapi;
-        private double[] markerColour = { 1.0, 1.0, 0.25, 0.5 };
-        private double[] markerOutlineColour = { 1.0, 1.0, 0, 0.5 };
         private double[] screenCenter = { 0, 0 };
-        private Dictionary<string,Dictionary<string,Vec3d>> location = new Dictionary<string, Dictionary<string, Vec3d>>();
         public override bool ShouldReceiveMouseEvents()
         {
             return false;
@@ -35,36 +31,65 @@ namespace HudClient
                 screenCenter[0] = (_rapi.FrameWidth / 2);
                 screenCenter[1] = (_rapi.FrameHeight / 2);
             }, 1000);
-            var loc = this.capi.LoadModConfig<Dictionary<string, Dictionary<string, Vec3d>>>("waymarker.json");
+            var loc = this.capi.LoadModConfig<Dictionary<string, Dictionary<string, (bool, (double[], double[]), Vec3d)>>> ("waymarker.json");
             if (loc != null)
-                location = loc;
+                ClientStorage.location = loc;
+            return;
         }
-        public void AddMarker(string marker, Vec3d position)
+        public void AddMarker(string marker,string color, Vec3d position)
         {
             goto Inspect;
         CreateLoc:
             {
-                location.Add(this.capi.World.SavegameIdentifier, new Dictionary<string, Vec3d>());
+                ClientStorage.location.Add(this.capi.World.SavegameIdentifier, new Dictionary<string, (bool, (double[], double[]), Vec3d)>());
                 goto Inspect;
             }
 
         Inspect:
             {
-                if (location.ContainsKey(this.capi.World.SavegameIdentifier))
+                if (ClientStorage.location.ContainsKey(this.capi.World.SavegameIdentifier))
                 {
-                    if (!location[this.capi.World.SavegameIdentifier].ContainsKey(marker))
-                        location[this.capi.World.SavegameIdentifier].Add(marker, position);
+                    if (!ClientStorage.location[this.capi.World.SavegameIdentifier].ContainsKey(marker))
+                        ClientStorage.location[this.capi.World.SavegameIdentifier].Add(marker, (true, ClientStorage.GetColorFromName(color), position));
                 }
                 else
                     goto CreateLoc;
             }
-            this.capi.StoreModConfig(location, "waymarker.json");
+            this.capi.StoreModConfig(ClientStorage.location, "waymarker.json");
+        }
+        public void SetColorMarker(string markername, string color)
+        {
+            if (!ClientStorage.location.ContainsKey(this.capi.World.SavegameIdentifier))
+                return;
+
+            if (!ClientStorage.location[this.capi.World.SavegameIdentifier].ContainsKey(markername))
+                return;
+            var dict = ClientStorage.location[this.capi.World.SavegameIdentifier];
+            var marker = dict[markername];
+            marker.color = ClientStorage.GetColorFromName(color);
+            dict[markername] = marker;
+            ClientStorage.location[this.capi.World.SavegameIdentifier] = dict;
+            this.capi.StoreModConfig(ClientStorage.location, "waymarker.json");
+        }
+        public void StateMarker(string markername, bool state)
+        {
+            if (!ClientStorage.location.ContainsKey(this.capi.World.SavegameIdentifier))
+                return;
+
+            if (!ClientStorage.location[this.capi.World.SavegameIdentifier].ContainsKey(markername))
+                return;
+            var dict = ClientStorage.location[this.capi.World.SavegameIdentifier];
+            var marker = dict[markername];
+            marker.enabled = state;
+            dict[markername] = marker;
+            ClientStorage.location[this.capi.World.SavegameIdentifier] = dict;
+            this.capi.StoreModConfig(ClientStorage.location, "waymarker.json");
         }
         public void RemoveMarker(string marker)
         {
-            if (location.ContainsKey(this.capi.World.SavegameIdentifier))
-                location[this.capi.World.SavegameIdentifier].Remove(marker);
-            this.capi.StoreModConfig(location, "waymarker.json");
+            if (ClientStorage.location.ContainsKey(this.capi.World.SavegameIdentifier))
+                ClientStorage.location[this.capi.World.SavegameIdentifier].Remove(marker);
+            this.capi.StoreModConfig(ClientStorage.location, "waymarker.json");
         }
         public void Compose()
         {
@@ -77,19 +102,6 @@ namespace HudClient
                 .Compose(true);
             marker = base.SingleComposer.GetCustomDraw("marker");
         }
-
-        private void HandleDrawStatic(Context ctx, ImageSurface surface, ElementBounds currentBounds)
-        {
-            ctx.Save();
-            ctx.LineWidth = 3;
-            float[] tagPos = { 30, 40};
-            if (tagPos != null)
-            {
-                DrawCircleAt(ctx, tagPos, markerColour,markerOutlineColour, 1);
-            }
-            ctx.Restore();
-        }
-
         private float[] GetTagPos(Vec3d blockPos)
         {
             Vec3d pos = blockPos.AddCopy(0.5, 0.5, 0.5);
@@ -145,20 +157,20 @@ namespace HudClient
                 stepCount += (int)num6;
             }
         }
-        private static float DrawCircleAt(Context ctx, float[] screenPos, double[] colorRgba, double[] outlineRgba,float size, bool isGroup = false)
+        private static float DrawCircleAt(Context ctx, float[] screenPos, double[] colorRgba, double[] outlineRgba,float size)
         {
             float num = Math.Max(1.8f, 10f * size);
             ctx.NewPath();
             ctx.SetSourceRGBA(colorRgba);
 /*            ctx.Arc((double)screenPos[0], (double)screenPos[1], (double)num, 0.0, 6.283185307179586);*/
-            DrawCustomMarker(ctx, screenPos, size, colorRgba);
+            DrawCustomMarker(ctx, screenPos, size);
             ctx.FillPreserve();
             ctx.SetSourceRGBA(outlineRgba);
             ctx.Stroke();
             return num;
         }
 
-        private static void DrawCustomMarker(Context ctx, float[] screenPos, float size, double[] colorRgba)
+        private static void DrawCustomMarker(Context ctx, float[] screenPos, float size)
         {
             double x = 0;
             double y = 0;
@@ -181,19 +193,21 @@ namespace HudClient
         {
             ctx.Save();
             ctx.LineWidth = 3;
-            if(location.Count > 0 && capi.World.Player != null)
+            if(ClientStorage.location.Count > 0 && capi.World.Player != null)
             {
-                foreach (var loc in location[this.capi.World.SavegameIdentifier])
+                foreach (var loc in ClientStorage.location[this.capi.World.SavegameIdentifier])
                 {
-                    float[] tagPos = GetTagPos(loc.Value);
+                    if (!loc.Value.enabled)
+                        continue;
+                    float[] tagPos = GetTagPos(loc.Value.vec3);
                     if (tagPos != null)
                     {
-                        DrawCircleAt(ctx, tagPos, markerColour, markerOutlineColour, 1);
+                        DrawCircleAt(ctx, tagPos, loc.Value.color.markerColour, loc.Value.color.markerOutlineColour, 1);
                         if (tagPos[0] <= screenCenter[0] + 25 && tagPos[0] >= screenCenter[0])
                         {
                             if (tagPos[1] <= screenCenter[1] + 40 && tagPos[1] >= screenCenter[1])
                             {
-                                int num = (int)capi.GetPlayerPosition().DistanceTo(loc.Value);
+                                int num = (int)capi.GetPlayerPosition().DistanceTo(loc.Value.vec3);
                                 DrawLabelAt(ctx, tagPos, loc.Key + "\n" + num.ToString() + " m.");
                             }
                         }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
 
-namespace HudClient
+namespace WayMarker
 {
     internal static class CoreAPIExtensions
     {
