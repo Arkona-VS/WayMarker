@@ -193,7 +193,7 @@ namespace WayMarker
         {
             ctx.Save();
             ctx.LineWidth = 3;
-            if(ClientStorage.location.Count > 0 && capi.World.Player != null)
+            if(ClientStorage.location.ContainsKey(this.capi.World.SavegameIdentifier) && capi.World.Player != null)
             {
                 foreach (var loc in ClientStorage.location[this.capi.World.SavegameIdentifier])
                 {
