@@ -36,6 +36,12 @@ namespace WayMarker
                 ClientStorage.location = loc;
             return;
         }
+        public Dictionary<string, (bool enabled, (double[] markerColour, double[] markerOutlineColour) color, Vec3d vec3)> ListMarker()
+        {
+            if (ClientStorage.location.ContainsKey(this.capi.World.SavegameIdentifier))
+                return ClientStorage.location[this.capi.World.SavegameIdentifier];
+            return new Dictionary<string, (bool enabled, (double[] markerColour, double[] markerOutlineColour) color, Vec3d vec3)>();
+        }
         public void AddMarker(string marker,string color, Vec3d position)
         {
             goto Inspect;

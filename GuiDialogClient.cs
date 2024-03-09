@@ -64,7 +64,20 @@ namespace WayMarker
             var colorwaymarker = api.ChatCommands.Create("colorswaymarker").RequiresPlayer()
                 .WithDescription("list of all colors")
                 .HandleWith(new OnCommandDelegate(colorswaymarker));
+            var listwaymarker = api.ChatCommands.Create("listwaymarker").RequiresPlayer()
+                .WithDescription("list of all way markers")
+                .HandleWith(new OnCommandDelegate(listswaymarker));
             OverlayTaskLoad(); 
+        }
+
+        private TextCommandResult listswaymarker(TextCommandCallingArgs args)
+        {
+            string message = "Way markers:";
+            foreach (var arg in overlayTask.ListMarker())
+            {
+                message += "Name: "+ arg.Key + " - visible: " + arg.Value.enabled.ToString() + "\n";
+            }
+            return TextCommandResult.Success(message);
         }
 
         private TextCommandResult savemarkerpos(TextCommandCallingArgs args)
